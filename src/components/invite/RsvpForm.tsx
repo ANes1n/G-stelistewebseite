@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { party } from "@/config/party";
 import { SuccessScreen } from "./SuccessScreen";
+import { AGE_GROUP_LABELS, type AgeGroup } from "@/lib/format-event";
 
 type Props = {
   code: string;
   formClosed: boolean;
   formClosedReason?: "closed" | "deadline" | "full";
   turnstileSiteKey?: string;
+  privacyNote: string;
 };
 
 type ApiOk = {
@@ -19,16 +20,19 @@ type ApiOk = {
   manageUrl: string;
 };
 
+const AGE_OPTIONS: AgeGroup[] = ["u16", "16_17", "18_plus"];
+
 export function RsvpForm({
   code,
   formClosed,
   formClosedReason,
   turnstileSiteKey,
+  privacyNote,
 }: Props) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<ApiOk | null>(null);
-  const [response, setResponse] = useState<"komme" | "komme_nicht" | "">("");
+  const [ageGroup, setAgeGroup] = useState<AgeGroup | "">("");
   const [note, setNote] = useState("");
 
   if (success) {
@@ -47,11 +51,11 @@ export function RsvpForm({
         ? "Leider sind alle Plätze vergeben."
         : formClosedReason === "deadline"
           ? "Die Anmeldefrist ist abgelaufen."
-          : "Rückmeldungen sind derzeit geschlossen.";
+          : "Anmeldungen sind derzeit geschlossen.";
     return (
       <div className="glass rounded-2xl p-5 text-center">
-        <p className="font-display text-xl font-semibold">RSVP geschlossen</p>
-        <p className="mt-2 text-[15px] text-[var(--text-muted)]">{message}</p>
+        <h2 className="heading-2 font-semibold">Anmeldung geschlossen</h2>
+        <p className="mt-2 text-[16px] text-[var(--text-muted)]">{message}</p>
       </div>
     );
   }
@@ -59,8 +63,13 @@ export function RsvpForm({
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setPending(true);
 
+    if (!ageGroup) {
+      setError("Bitte wähle deine Altersgruppe.");
+      return;
+    }
+
+    setPending(true);
     const form = e.currentTarget;
     const fd = new FormData(form);
 
@@ -80,9 +89,7 @@ export function RsvpForm({
           code,
           firstName: String(fd.get("firstName") ?? ""),
           lastName: String(fd.get("lastName") ?? ""),
-          response: String(fd.get("response") ?? ""),
-          over16: fd.get("over16") === "on",
-          over18: fd.get("over18") === "on",
+          ageGroup,
           note: String(fd.get("note") ?? ""),
           website: String(fd.get("website") ?? ""),
           turnstileToken,
@@ -113,14 +120,13 @@ export function RsvpForm({
     <motion.form
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2, duration: 0.45 }}
+      transition={{ delay: 0.15, duration: 0.4 }}
       onSubmit={onSubmit}
-      className="glass space-y-4 rounded-2xl p-5"
+      className="glass w-full max-w-full space-y-4 rounded-2xl p-4 sm:p-5"
       noValidate
     >
-      <h2 className="font-display text-xl font-semibold">Rückmeldung</h2>
+      <h2 className="heading-2 font-semibold">Jetzt anmelden</h2>
 
-      {/* Honeypot */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -left-[9999px] h-0 w-0 opacity-0"
@@ -133,90 +139,60 @@ export function RsvpForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1.5 block text-sm text-[var(--text-muted)]">
-            Vorname
-          </span>
+          <span className="field-label mb-1.5 block">Vorname</span>
           <input
             name="firstName"
             required
             maxLength={80}
             autoComplete="given-name"
-            className="touch-target w-full rounded-xl border border-white/15 bg-white/5 px-3 text-base outline-none focus:border-violet-300/60"
+            className="touch-target w-full rounded-xl border border-white/15 bg-white/5 px-3 text-[16px] outline-none focus:border-violet-300/60"
           />
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-sm text-[var(--text-muted)]">
-            Nachname
-          </span>
+          <span className="field-label mb-1.5 block">Nachname</span>
           <input
             name="lastName"
             required
             maxLength={80}
             autoComplete="family-name"
-            className="touch-target w-full rounded-xl border border-white/15 bg-white/5 px-3 text-base outline-none focus:border-violet-300/60"
+            className="touch-target w-full rounded-xl border border-white/15 bg-white/5 px-3 text-[16px] outline-none focus:border-violet-300/60"
           />
         </label>
       </div>
 
       <fieldset className="space-y-2">
-        <legend className="mb-1.5 text-sm text-[var(--text-muted)]">
-          Antwort
-        </legend>
-        <label className="touch-target glass flex cursor-pointer items-center gap-3 rounded-xl px-3">
-          <input
-            type="radio"
-            name="response"
-            value="komme"
-            required
-            checked={response === "komme"}
-            onChange={() => setResponse("komme")}
-            className="size-5 accent-pink-400"
-          />
-          <span>Ich komme</span>
-        </label>
-        <label className="touch-target glass flex cursor-pointer items-center gap-3 rounded-xl px-3">
-          <input
-            type="radio"
-            name="response"
-            value="komme_nicht"
-            checked={response === "komme_nicht"}
-            onChange={() => setResponse("komme_nicht")}
-            className="size-5 accent-pink-400"
-          />
-          <span>Ich komme nicht</span>
-        </label>
+        <legend className="field-label mb-1.5">Altersgruppe</legend>
+        {AGE_OPTIONS.map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            className="age-card"
+            data-selected={ageGroup === opt}
+            onClick={() => setAgeGroup(opt)}
+          >
+            <span
+              className={`inline-flex size-5 shrink-0 rounded-full border-2 ${
+                ageGroup === opt
+                  ? "border-violet-300 bg-violet-400"
+                  : "border-white/35"
+              }`}
+            />
+            <span className="text-[16px] font-medium">{AGE_GROUP_LABELS[opt]}</span>
+          </button>
+        ))}
       </fieldset>
 
-      <label className="touch-target flex items-start gap-3">
-        <input
-          type="checkbox"
-          name="over16"
-          className="mt-1 size-5 shrink-0 accent-violet-400"
-        />
-        <span className="text-[15px]">Ich bin mindestens 16</span>
-      </label>
-      <label className="touch-target flex items-start gap-3">
-        <input
-          type="checkbox"
-          name="over18"
-          className="mt-1 size-5 shrink-0 accent-violet-400"
-        />
-        <span className="text-[15px]">Ich bin mindestens 18</span>
-      </label>
-
       <label className="block">
-        <span className="mb-1.5 block text-sm text-[var(--text-muted)]">
-          Anmerkung (optional)
-        </span>
+        <span className="field-label mb-1.5 block">Anmerkung (optional)</span>
         <textarea
           name="note"
           maxLength={200}
           rows={3}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-3 text-base outline-none focus:border-violet-300/60"
+          className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-3 text-[16px] outline-none focus:border-violet-300/60"
         />
-        <span className="mt-1 block text-right text-xs text-[var(--text-muted)]">
+        <span className="mt-1 block text-right text-[13px] text-[var(--text-muted)]">
           {note.length}/200
         </span>
       </label>
@@ -229,23 +205,24 @@ export function RsvpForm({
         />
       ) : null}
 
-      <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-        {party.privacyNote}
+      <p className="text-[13px] leading-relaxed text-[var(--text-muted)]">
+        {privacyNote}
       </p>
 
       {error ? (
-        <p className="rounded-xl bg-rose-500/15 px-3 py-2 text-sm text-rose-200">
+        <p className="rounded-xl bg-rose-500/15 px-3 py-2 text-[15px] text-rose-200">
           {error}
         </p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="touch-target accent-gradient w-full rounded-xl text-sm font-semibold text-[#0b0614] disabled:opacity-60"
-      >
-        {pending ? "Sende…" : "Absenden"}
+      <button type="submit" disabled={pending} className="btn btn-primary">
+        {pending ? "Sende…" : "Anmeldung absenden"}
       </button>
+
+      <p className="text-center text-[14px] leading-relaxed text-[var(--text-muted)]">
+        Alle Anmeldungen werden von uns manuell geprüft. Du bekommst eine
+        Bestätigung von uns.
+      </p>
     </motion.form>
   );
 }

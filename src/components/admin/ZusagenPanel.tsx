@@ -1,16 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  AGE_GROUP_LABELS,
+  type AgeGroup,
+} from "@/lib/format-event";
 
 type Rsvp = {
   id: string;
   first_name: string;
   last_name: string;
   response: "komme" | "komme_nicht";
-  over16: boolean;
-  over18: boolean;
+  age_group: AgeGroup;
   note: string | null;
-  status: "ausstehend" | "bestätigt" | "abgelehnt";
+  status: "ausstehend" | "bestätigt" | "abgelehnt" | "zurückgezogen";
+  was_confirmed: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -18,9 +22,7 @@ type Rsvp = {
 function downloadCsv(filename: string, rows: string[][]) {
   const csv = rows
     .map((r) =>
-      r
-        .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
-        .join(","),
+      r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
     )
     .join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -37,6 +39,7 @@ export function ZusagenPanel() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("alle");
+  const [ageFilter, setAgeFilter] = useState<string>("alle");
   const [flash, setFlash] = useState<string | null>(null);
   const [regenUrl, setRegenUrl] = useState<string | null>(null);
 
@@ -56,13 +59,18 @@ export function ZusagenPanel() {
   }, [load]);
 
   const counters = useMemo(() => {
-    const zugesagt = rsvps.filter((r) => r.response === "komme").length;
-    const abgesagt = rsvps.filter((r) => r.response === "komme_nicht").length;
-    const ausstehend = rsvps.filter((r) => r.status === "ausstehend").length;
+    const active = rsvps.filter(
+      (r) => r.response === "komme" && r.status !== "zurückgezogen",
+    );
     return {
-      zugesagt,
-      abgesagt,
-      ausstehend,
+      aktiv: active.length,
+      ausstehend: rsvps.filter((r) => r.status === "ausstehend").length,
+      bestätigt: rsvps.filter((r) => r.status === "bestätigt").length,
+      abgelehnt: rsvps.filter((r) => r.status === "abgelehnt").length,
+      zurückgezogen: rsvps.filter((r) => r.status === "zurückgezogen").length,
+      u16: rsvps.filter((r) => r.age_group === "u16").length,
+      a1617: rsvps.filter((r) => r.age_group === "16_17").length,
+      a18: rsvps.filter((r) => r.age_group === "18_plus").length,
       gesamt: rsvps.length,
     };
   }, [rsvps]);
@@ -71,12 +79,13 @@ export function ZusagenPanel() {
     const q = query.trim().toLowerCase();
     return rsvps.filter((r) => {
       if (statusFilter !== "alle" && r.status !== statusFilter) return false;
+      if (ageFilter !== "alle" && r.age_group !== ageFilter) return false;
       if (!q) return true;
       return `${r.first_name} ${r.last_name} ${r.note ?? ""}`
         .toLowerCase()
         .includes(q);
     });
-  }, [rsvps, query, statusFilter]);
+  }, [rsvps, query, statusFilter, ageFilter]);
 
   async function setStatus(id: string, status: Rsvp["status"]) {
     const res = await fetch("/api/admin/rsvps", {
@@ -110,22 +119,15 @@ export function ZusagenPanel() {
     }
   }
 
-  async function copyRegen() {
-    if (!regenUrl) return;
-    await navigator.clipboard.writeText(regenUrl);
-    setFlash("Link kopiert.");
-  }
-
   function exportConfirmed() {
     const rows = [
-      ["Vorname", "Nachname", "16+", "18+"],
+      ["Vorname", "Nachname", "Altersgruppe"],
       ...rsvps
         .filter((r) => r.status === "bestätigt" && r.response === "komme")
         .map((r) => [
           r.first_name,
           r.last_name,
-          r.over16 ? "ja" : "nein",
-          r.over18 ? "ja" : "nein",
+          AGE_GROUP_LABELS[r.age_group] ?? r.age_group,
         ]),
     ];
     downloadCsv("zusagen-bestaetigt.csv", rows);
@@ -134,7 +136,7 @@ export function ZusagenPanel() {
   async function deleteAllYes() {
     if (
       !confirm(
-        "Wirklich ALLE Zusagen (response = komme) löschen? Das kann nicht rückgängig gemacht werden.",
+        "Wirklich ALLE aktiven Zusagen löschen? Das kann nicht rückgängig gemacht werden.",
       )
     ) {
       return;
@@ -145,7 +147,7 @@ export function ZusagenPanel() {
       body: JSON.stringify({ allConfirmed: true }),
     });
     if (res.ok) {
-      setFlash("Alle Zusagen gelöscht.");
+      setFlash("Aktive Zusagen gelöscht.");
       await load();
     }
   }
@@ -153,26 +155,23 @@ export function ZusagenPanel() {
   return (
     <div className="admin-page space-y-5">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div className="max-w-full">
           <h1 className="font-display font-semibold">Zusagen</h1>
-          <p className="mt-1 text-[16px] text-[var(--text-muted)]">
-            {counters.zugesagt} zugesagt · {counters.abgesagt} abgesagt ·{" "}
-            {counters.ausstehend} ausstehend · {counters.gesamt} gesamt
+          <p className="mt-1 text-[14px] text-[var(--text-muted)]">
+            {counters.aktiv} aktiv · {counters.ausstehend} ausstehend ·{" "}
+            {counters.bestätigt} bestätigt · {counters.zurückgezogen} zurück ·{" "}
+            {counters.gesamt} gesamt
+          </p>
+          <p className="mt-1 text-[14px] text-[var(--text-muted)]">
+            Alter: {counters.u16} u16 · {counters.a1617} 16–17 · {counters.a18}{" "}
+            18+
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          <button
-            type="button"
-            onClick={exportConfirmed}
-            className="btn btn-secondary sm:w-auto"
-          >
+          <button type="button" onClick={exportConfirmed} className="btn btn-secondary sm:w-auto">
             CSV Export
           </button>
-          <button
-            type="button"
-            onClick={deleteAllYes}
-            className="btn btn-danger sm:w-auto"
-          >
+          <button type="button" onClick={deleteAllYes} className="btn btn-danger sm:w-auto">
             Alle Zusagen löschen
           </button>
         </div>
@@ -194,21 +193,32 @@ export function ZusagenPanel() {
           <option value="ausstehend">Ausstehend</option>
           <option value="bestätigt">Bestätigt</option>
           <option value="abgelehnt">Abgelehnt</option>
+          <option value="zurückgezogen">Zurückgezogen</option>
+        </select>
+        <select
+          value={ageFilter}
+          onChange={(e) => setAgeFilter(e.target.value)}
+          className="admin-input sm:max-w-[12rem]"
+        >
+          <option value="alle">Alle Alter</option>
+          <option value="u16">Unter 16</option>
+          <option value="16_17">16–17</option>
+          <option value="18_plus">18+</option>
         </select>
       </div>
 
       {flash ? (
-        <div className="glass space-y-2 rounded-xl p-3 text-sm">
+        <div className="glass space-y-2 rounded-xl p-3 text-[15px]">
           <p>{flash}</p>
           {regenUrl ? (
             <div className="flex flex-col gap-2 sm:flex-row">
-              <code className="break-all text-xs text-[var(--text-muted)]">
+              <code className="break-all text-[13px] text-[var(--text-muted)]">
                 {regenUrl}
               </code>
               <button
                 type="button"
-                onClick={copyRegen}
-                className="touch-target accent-gradient shrink-0 rounded-xl px-3 text-sm font-semibold text-[#0b0614]"
+                onClick={() => navigator.clipboard.writeText(regenUrl)}
+                className="btn btn-primary sm:w-auto"
               >
                 Kopieren
               </button>
@@ -218,10 +228,9 @@ export function ZusagenPanel() {
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-[var(--text-muted)]">Laden…</p>
+        <p className="text-[15px] text-[var(--text-muted)]">Laden…</p>
       ) : (
         <>
-          {/* Mobile cards */}
           <div className="space-y-3 md:hidden">
             {filtered.map((r) => (
               <RsvpCard
@@ -235,15 +244,13 @@ export function ZusagenPanel() {
             ))}
           </div>
 
-          {/* Desktop table */}
           <div className="glass hidden overflow-x-auto rounded-2xl md:block">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[760px] text-left text-[15px]">
               <thead className="border-b border-white/10 text-[var(--text-muted)]">
                 <tr>
                   <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Antwort</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Alter</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Aktionen</th>
                 </tr>
               </thead>
@@ -255,34 +262,26 @@ export function ZusagenPanel() {
                         {r.first_name} {r.last_name}
                       </div>
                       {r.note ? (
-                        <div className="mt-1 text-xs text-[var(--text-muted)]">
+                        <div className="mt-1 text-[13px] text-[var(--text-muted)]">
                           {r.note}
                         </div>
                       ) : null}
-                      {r.status === "bestätigt" &&
-                      r.response === "komme_nicht" ? (
-                        <span className="mt-2 inline-block rounded-md bg-amber-500/20 px-2 py-0.5 text-xs text-amber-100">
+                      {r.status === "zurückgezogen" && r.was_confirmed ? (
+                        <span className="badge badge-warn mt-2">
                           Absage nach Bestätigung
                         </span>
                       ) : null}
                     </td>
                     <td className="px-4 py-3">
-                      {r.response === "komme" ? "Komme" : "Komme nicht"}
+                      <span className="badge badge-age">
+                        {AGE_GROUP_LABELS[r.age_group]}
+                      </span>
                     </td>
                     <td className="px-4 py-3 capitalize">{r.status}</td>
                     <td className="px-4 py-3">
-                      {r.over16 ? "16+" : "–"} / {r.over18 ? "18+" : "–"}
-                    </td>
-                    <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
-                        <Action
-                          label="Bestätigen"
-                          onClick={() => setStatus(r.id, "bestätigt")}
-                        />
-                        <Action
-                          label="Ablehnen"
-                          onClick={() => setStatus(r.id, "abgelehnt")}
-                        />
+                        <Action label="Bestätigen" onClick={() => setStatus(r.id, "bestätigt")} />
+                        <Action label="Ablehnen" onClick={() => setStatus(r.id, "abgelehnt")} />
                         <Action label="Link neu" onClick={() => regenerate(r.id)} />
                         <Action label="Löschen" danger onClick={() => remove(r.id)} />
                       </div>
@@ -311,7 +310,7 @@ function Action({
     <button
       type="button"
       onClick={onClick}
-      className={`touch-target rounded-lg px-2 text-xs ${
+      className={`touch-target rounded-lg px-2 text-[13px] ${
         danger ? "bg-rose-500/20 text-rose-100" : "bg-white/10"
       }`}
     >
@@ -334,28 +333,24 @@ function RsvpCard({
   onRegen: () => void;
 }) {
   return (
-    <article className="glass rounded-2xl p-4">
+    <article className="glass admin-card">
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h2 className="font-medium">
             {r.first_name} {r.last_name}
           </h2>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
-            {r.response === "komme" ? "Komme" : "Komme nicht"} · {r.status}
-          </p>
+          <p className="mt-1 text-[14px] text-[var(--text-muted)]">{r.status}</p>
         </div>
-        {r.status === "bestätigt" && r.response === "komme_nicht" ? (
-          <span className="rounded-md bg-amber-500/20 px-2 py-1 text-xs text-amber-100">
-            Absage nach Bestätigung
-          </span>
-        ) : null}
+        <span className="badge badge-age shrink-0">
+          {AGE_GROUP_LABELS[r.age_group]}
+        </span>
       </div>
-      {r.note ? (
-        <p className="mt-2 text-sm text-[var(--text-muted)]">{r.note}</p>
+      {r.status === "zurückgezogen" && r.was_confirmed ? (
+        <span className="badge badge-warn mt-2">Absage nach Bestätigung</span>
       ) : null}
-      <p className="mt-2 text-xs text-[var(--text-muted)]">
-        {r.over16 ? "16+" : "kein 16+"} · {r.over18 ? "18+" : "kein 18+"}
-      </p>
+      {r.note ? (
+        <p className="mt-2 text-[14px] text-[var(--text-muted)]">{r.note}</p>
+      ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
         <Action label="Bestätigen" onClick={onConfirm} />
         <Action label="Ablehnen" onClick={onReject} />

@@ -7,12 +7,25 @@ import {
   Ticket,
   Settings,
   LogOut,
+  PartyPopper,
 } from "lucide-react";
 
 const links = [
-  { href: "/admin/zusagen", label: "Zusagen", icon: Users },
-  { href: "/admin/codes", label: "Codes", icon: Ticket },
-  { href: "/admin/settings", label: "Einstellungen", icon: Settings, match: ["/admin/settings", "/admin/einstellungen"] },
+  { href: "/admin/zusagen", label: "Zusagen", short: "Zusagen", icon: Users },
+  {
+    href: "/admin/einladung",
+    label: "Einladung",
+    short: "Einlad.",
+    icon: PartyPopper,
+  },
+  { href: "/admin/codes", label: "Codes", short: "Codes", icon: Ticket },
+  {
+    href: "/admin/settings",
+    label: "Einstellungen",
+    short: "Einstell.",
+    icon: Settings,
+    match: ["/admin/settings", "/admin/einstellungen"],
+  },
 ];
 
 function isActive(pathname: string, href: string, match?: string[]) {
@@ -25,7 +38,6 @@ export function AdminNav() {
 
   return (
     <>
-      {/* Desktop sidebar */}
       <aside className="glass fixed top-0 bottom-0 left-0 z-20 hidden w-60 flex-col border-r border-white/10 p-4 pt-[max(1rem,env(safe-area-inset-top))] md:flex">
         <p className="font-display accent-text text-sm font-semibold tracking-wide uppercase">
           Admin
@@ -61,9 +73,8 @@ export function AdminNav() {
         </form>
       </aside>
 
-      {/* Mobile bottom tabs */}
-      <nav className="glass admin-tabbar fixed inset-x-0 bottom-0 z-20 border-t border-white/10 px-2 pt-2 md:hidden">
-        <div className="mx-auto flex max-w-lg items-stretch justify-around gap-1">
+      <nav className="glass admin-tabbar fixed inset-x-0 bottom-0 z-20 border-t border-white/10 px-1 pt-2 md:hidden">
+        <div className="mx-auto flex max-w-lg items-stretch justify-around gap-0.5">
           {links.map((link) => {
             const active = isActive(pathname, link.href, link.match);
             const Icon = link.icon;
@@ -71,23 +82,23 @@ export function AdminNav() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-semibold tracking-wide ${
+                className={`flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 text-[10px] font-semibold tracking-wide ${
                   active
                     ? "bg-gradient-to-br from-violet-600 to-pink-600 text-white shadow-md"
                     : "text-[var(--text-muted)]"
                 }`}
               >
-                <Icon className="size-6" strokeWidth={active ? 2.4 : 2} aria-hidden />
-                <span>{link.label === "Einstellungen" ? "Einstell." : link.label}</span>
+                <Icon className="size-5" strokeWidth={active ? 2.4 : 2} aria-hidden />
+                <span>{link.short}</span>
               </Link>
             );
           })}
           <form action="/api/auth/logout" method="post" className="flex flex-1">
             <button
               type="submit"
-              className="flex min-h-[60px] w-full flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-semibold tracking-wide text-[var(--text-muted)]"
+              className="flex min-h-[56px] w-full flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 text-[10px] font-semibold tracking-wide text-[var(--text-muted)]"
             >
-              <LogOut className="size-6" aria-hidden />
+              <LogOut className="size-5" aria-hidden />
               <span>Logout</span>
             </button>
           </form>

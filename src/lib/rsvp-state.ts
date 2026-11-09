@@ -43,7 +43,8 @@ export async function countYesRsvps(): Promise<number> {
     const { count } = await admin
       .from("rsvps")
       .select("id", { count: "exact", head: true })
-      .eq("response", "komme");
+      .eq("response", "komme")
+      .neq("status", "zurückgezogen");
     return count ?? 0;
   } catch {
     return 0;

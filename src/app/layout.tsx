@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Outfit, Syne } from "next/font/google";
-import { party } from "@/config/party";
 import "./globals.css";
 
 const syne = Syne({
@@ -16,8 +15,8 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: party.brandName,
-  description: party.metaDescription,
+  title: "Einladung",
+  description: "Private Einladung",
   robots: {
     index: false,
     follow: false,
@@ -32,7 +31,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: party.brandName,
+    title: "Einladung",
   },
   icons: {
     icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
@@ -55,7 +54,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de" className={`${syne.variable} ${outfit.variable}`}>
-      <body className="min-h-dvh antialiased">{children}</body>
+      <body className="min-h-dvh max-w-full overflow-x-hidden antialiased">
+        {children}
+      </body>
     </html>
   );
 }

@@ -33,13 +33,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const { token, response, note } = parsed.data;
+    const { token, action, note } = parsed.data;
     const tokenHash = hashToken(token);
     const admin = createAdminClient();
 
     const { data: row } = await admin
       .from("rsvps")
-      .select("id, response, manage_token_hash")
+      .select("id, response, status, was_confirmed, manage_token_hash")
       .eq("manage_token_hash", tokenHash)
       .maybeSingle();
 
@@ -47,39 +47,75 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: GENERIC_ERROR }, { status: 404 });
     }
 
-    // Cancelling always allowed; switching to "komme" may be blocked.
-    if (response === "komme" && row.response !== "komme") {
-      const settings = await getSettings();
-      if (!settings) {
-        return NextResponse.json({ ok: false, error: GENERIC_ERROR }, { status: 500 });
+    if (action === "note") {
+      const { error } = await admin
+        .from("rsvps")
+        .update({
+          note: note && note.length > 0 ? note : null,
+        })
+        .eq("id", row.id);
+      if (error) {
+        return NextResponse.json({ ok: false, error: GENERIC_ERROR }, { status: 400 });
       }
-      const yesCount = await countYesRsvps();
-      const capacity = canAcceptYes(settings, yesCount);
-      if (!capacity.ok) {
-        const error =
-          capacity.reason === "full"
-            ? "Leider sind alle Plätze vergeben."
-            : capacity.reason === "deadline"
-              ? "Die Anmeldefrist ist abgelaufen."
-              : "Zusagen sind geschlossen.";
-        return NextResponse.json({ ok: false, error }, { status: 400 });
+      return NextResponse.json({ ok: true, status: row.status });
+    }
+
+    if (action === "withdraw") {
+      const wasBestätigt =
+        row.status === "bestätigt" || Boolean(row.was_confirmed);
+      const { error } = await admin
+        .from("rsvps")
+        .update({
+          status: "zurückgezogen",
+          response: "komme_nicht",
+          was_confirmed: wasBestätigt,
+          note: note && note.length > 0 ? note : null,
+        })
+        .eq("id", row.id);
+      if (error) {
+        return NextResponse.json({ ok: false, error: GENERIC_ERROR }, { status: 400 });
       }
+      return NextResponse.json({ ok: true, status: "zurückgezogen" });
+    }
+
+    // reregister
+    if (row.status !== "zurückgezogen") {
+      return NextResponse.json(
+        { ok: false, error: "Du bist bereits angemeldet." },
+        { status: 400 },
+      );
+    }
+
+    const settings = await getSettings();
+    if (!settings) {
+      return NextResponse.json({ ok: false, error: GENERIC_ERROR }, { status: 500 });
+    }
+    const yesCount = await countYesRsvps();
+    const capacity = canAcceptYes(settings, yesCount);
+    if (!capacity.ok) {
+      const error =
+        capacity.reason === "full"
+          ? "Leider sind alle Plätze vergeben."
+          : capacity.reason === "deadline"
+            ? "Die Anmeldefrist ist abgelaufen."
+            : "Anmeldungen sind geschlossen.";
+      return NextResponse.json({ ok: false, error }, { status: 400 });
     }
 
     const { error } = await admin
       .from("rsvps")
       .update({
-        response,
+        status: "ausstehend",
+        response: "komme",
         note: note && note.length > 0 ? note : null,
       })
-      .eq("id", row.id)
-      .eq("manage_token_hash", tokenHash);
+      .eq("id", row.id);
 
     if (error) {
       return NextResponse.json({ ok: false, error: GENERIC_ERROR }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, status: "ausstehend" });
   } catch {
     return NextResponse.json({ ok: false, error: GENERIC_ERROR }, { status: 500 });
   }

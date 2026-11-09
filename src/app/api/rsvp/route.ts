@@ -24,7 +24,6 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => null);
 
-    // Honeypot first (bots) — generic error, no details.
     if (
       body &&
       typeof body === "object" &&
@@ -62,13 +61,11 @@ export async function POST(request: Request) {
     const manageTokenHash = hashToken(manageToken);
 
     const admin = createAdminClient();
-    const { data: rsvpId, error } = await admin.rpc("create_rsvp_atomic", {
+    const { error } = await admin.rpc("create_rsvp_atomic", {
       p_invite_code_id: invite.kind === "db" ? invite.row.id : null,
       p_first_name: data.firstName,
       p_last_name: data.lastName,
-      p_response: data.response,
-      p_over16: data.over16,
-      p_over18: data.over18,
+      p_age_group: data.ageGroup,
       p_note: data.note ?? "",
       p_manage_token_hash: manageTokenHash,
       p_increment_code: invite.kind === "db",
@@ -78,7 +75,7 @@ export async function POST(request: Request) {
       const msg = error.message || "";
       if (msg.includes("rsvp_closed")) {
         return NextResponse.json(
-          { ok: false, error: "Rückmeldungen sind geschlossen." },
+          { ok: false, error: "Anmeldungen sind geschlossen." },
           { status: 400 },
         );
       }
@@ -103,8 +100,6 @@ export async function POST(request: Request) {
       }
       return NextResponse.json({ ok: false, error: GENERIC_ERROR }, { status: 400 });
     }
-
-    void rsvpId;
 
     return NextResponse.json({
       ok: true,

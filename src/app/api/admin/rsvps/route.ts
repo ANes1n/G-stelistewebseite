@@ -14,12 +14,15 @@ export async function GET() {
   const { data, error: dbError } = await admin
     .from("rsvps")
     .select(
-      "id, first_name, last_name, response, over16, over18, note, status, invite_code_id, created_at, updated_at",
+      "id, first_name, last_name, response, age_group, note, status, was_confirmed, invite_code_id, created_at, updated_at",
     )
     .order("created_at", { ascending: false });
 
   if (dbError) {
-    return NextResponse.json({ ok: false, error: "Laden fehlgeschlagen" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: dbError.message || "Laden fehlgeschlagen" },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ ok: true, rsvps: data ?? [] });
@@ -31,7 +34,7 @@ export async function PATCH(request: Request) {
 
   const body = (await request.json().catch(() => null)) as {
     id?: string;
-    status?: "ausstehend" | "bestätigt" | "abgelehnt";
+    status?: "ausstehend" | "bestätigt" | "abgelehnt" | "zurückgezogen";
     regenerateToken?: boolean;
   } | null;
 
@@ -59,9 +62,17 @@ export async function PATCH(request: Request) {
   }
 
   if (body.status) {
+    const patch: Record<string, unknown> = { status: body.status };
+    if (body.status === "bestätigt") {
+      patch.was_confirmed = true;
+      patch.response = "komme";
+    }
+    if (body.status === "zurückgezogen") {
+      patch.response = "komme_nicht";
+    }
     const { error: updError } = await admin
       .from("rsvps")
-      .update({ status: body.status })
+      .update(patch)
       .eq("id", body.id);
     if (updError) {
       return NextResponse.json({ ok: false, error: "Fehler" }, { status: 500 });
@@ -87,7 +98,8 @@ export async function DELETE(request: Request) {
     const { error: delError } = await admin
       .from("rsvps")
       .delete()
-      .eq("response", "komme");
+      .eq("response", "komme")
+      .neq("status", "zurückgezogen");
     if (delError) {
       return NextResponse.json({ ok: false, error: "Fehler" }, { status: 500 });
     }

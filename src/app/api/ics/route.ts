@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { party } from "@/config/party";
+import { getEventInfo } from "@/lib/event-info";
+import {
+  calendarLocation,
+  effectiveTimeLabel,
+  formatDateRangeLabel,
+  toIcsLocal,
+} from "@/lib/format-event";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashEquals, hashToken } from "@/lib/tokens";
 
@@ -32,7 +38,22 @@ export async function GET(request: Request) {
     return new NextResponse("Not found", { status: 404 });
   }
 
+  const event = await getEventInfo();
+  const summary =
+    event.calendar_summary.trim() || event.party_name || "Einladung";
+  const descriptionParts = [
+    event.calendar_description.trim(),
+    formatDateRangeLabel(event),
+    effectiveTimeLabel(event),
+    calendarLocation(event),
+  ].filter(Boolean);
+
   const uid = `${tokenHash.slice(0, 16)}@invite`;
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}Z$/, "Z");
+
   const body = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -41,12 +62,17 @@ export async function GET(request: Request) {
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
     `UID:${uid}`,
-    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}`,
-    `DTSTART:${party.calendar.start}`,
-    `DTEND:${party.calendar.end}`,
-    `SUMMARY:${icsEscape(party.calendar.summary)}`,
-    `DESCRIPTION:${icsEscape(party.calendar.description)}`,
-    `LOCATION:${icsEscape(party.calendar.location)}`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART;TZID=Europe/Berlin:${toIcsLocal(event.starts_at)}`,
+    `DTEND;TZID=Europe/Berlin:${toIcsLocal(event.ends_at)}`,
+    `SUMMARY:${icsEscape(summary)}`,
+    `DESCRIPTION:${icsEscape(descriptionParts.join("\\n"))}`,
+    `LOCATION:${icsEscape(calendarLocation(event))}`,
+    "BEGIN:VALARM",
+    "TRIGGER:-PT24H",
+    "ACTION:DISPLAY",
+    `DESCRIPTION:${icsEscape(summary)}`,
+    "END:VALARM",
     "END:VEVENT",
     "END:VCALENDAR",
     "",

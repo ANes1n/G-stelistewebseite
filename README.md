@@ -22,6 +22,7 @@ This is a standalone project (not related to “Party Control”).
 
    - `supabase/migrations/001_init.sql`
    - `supabase/migrations/002_ensure_settings.sql` (safe to re-run; seeds the settings row)
+   - `supabase/migrations/003_age_group_event_info.sql` (age_group, withdrawn status, `event_info` card)
 
 3. In **Authentication → Users**, create the admin user (email + password).  
    There is no public registration page.

@@ -34,13 +34,18 @@
 
 html {
   color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
   min-height: 100dvh;
+  max-width: 100%;
+  overflow-x: hidden;
   color: var(--text);
   font-family: var(--font-body);
+  font-size: 16.5px;
+  line-height: 1.5;
   background-color: var(--bg-deep);
   background-image:
     radial-gradient(ellipse 80% 50% at 20% -10%, var(--glow-violet), transparent 55%),
@@ -49,6 +54,8 @@ body {
     linear-gradient(180deg, var(--bg-mid) 0%, var(--bg-deep) 42%, #050816 100%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
+  hyphens: auto;
+  overflow-wrap: anywhere;
 }
 
 ::selection {
@@ -57,6 +64,36 @@ body {
 
 .font-display {
   font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+h1,
+.heading-1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 7vw, 2.5rem);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+h2,
+.heading-2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 5.5vw, 1.9rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+.field-label {
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
 .glass {
@@ -78,13 +115,13 @@ body {
 }
 
 .touch-target {
-  min-height: 44px;
-  min-width: 44px;
+  min-height: 48px;
+  min-width: 48px;
 }
 
 .touch-target-lg {
-  min-height: 52px;
-  min-width: 52px;
+  min-height: 48px;
+  min-width: 48px;
 }
 
 .safe-pad {
@@ -94,31 +131,33 @@ body {
   padding-left: max(1rem, var(--safe-left));
 }
 
-/* Admin / mobile-first type scale */
 .admin-page {
-  font-size: 17px;
+  font-size: 16.5px;
   line-height: 1.45;
+  max-width: 100%;
 }
 
 .admin-page h1 {
-  font-size: clamp(1.75rem, 4vw, 2rem);
-  line-height: 1.2;
+  font-size: clamp(1.75rem, 7vw, 2.5rem);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .admin-label {
-  font-size: 16px;
+  font-size: 14.5px;
   font-weight: 500;
   color: var(--text-muted);
 }
 
 .admin-input {
-  min-height: 52px;
+  min-height: 48px;
   width: 100%;
+  max-width: 100%;
   border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(255, 255, 255, 0.05);
-  padding: 0.75rem 1rem;
-  font-size: 18px;
+  padding: 0.7rem 0.9rem;
+  font-size: 16px;
   color: var(--text);
   outline: none;
 }
@@ -131,13 +170,14 @@ body {
 .btn {
   display: inline-flex;
   align-items: center;
-  justify-center: center;
+  justify-content: center;
   gap: 0.5rem;
-  min-height: 52px;
+  min-height: 48px;
   width: 100%;
+  max-width: 100%;
   border-radius: 1rem;
-  padding: 0.75rem 1rem;
-  font-size: 16px;
+  padding: 0.7rem 1rem;
+  font-size: 17px;
   font-weight: 600;
   transition:
     transform 0.12s ease,
@@ -160,7 +200,6 @@ body {
   cursor: not-allowed;
 }
 
-/* Stronger gradient + white text for contrast */
 .btn-primary {
   color: #fff;
   background-image: linear-gradient(135deg, #7c3aed 0%, #db2777 100%);
@@ -194,7 +233,8 @@ body {
 
 .admin-card {
   border-radius: 1.25rem;
-  padding: 1.15rem 1.1rem;
+  padding: 1rem;
+  max-width: 100%;
 }
 
 .admin-card-highlight {
@@ -218,8 +258,8 @@ body {
 }
 
 .admin-content {
-  /* tab bar (~72px) + safe area — keep cards clear of the bar */
   padding-bottom: calc(6.75rem + var(--safe-bottom));
+  max-width: 100%;
 }
 
 @media (min-width: 768px) {
@@ -228,17 +268,56 @@ body {
   }
 }
 
+.age-card {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  text-align: left;
+  cursor: pointer;
+}
+
+.age-card[data-selected="true"] {
+  border-color: rgba(167, 139, 250, 0.75);
+  background: rgba(124, 58, 237, 0.22);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.5rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.badge-age {
+  background: rgba(167, 139, 250, 0.2);
+  color: #e9d5ff;
+}
+
+.badge-warn {
+  background: rgba(245, 158, 11, 0.22);
+  color: #fde68a;
+}
+
 input,
 textarea,
 select,
 button {
   font: inherit;
+  max-width: 100%;
 }
 
 input,
 textarea,
 select {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 @keyframes float-glow {

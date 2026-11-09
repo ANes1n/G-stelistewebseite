@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { ManageForm } from "@/components/invite/ManageForm";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { AgeGroup } from "@/lib/format-event";
 import {
   canAcceptYes,
   countYesRsvps,
@@ -24,7 +25,7 @@ export default async function ManagePage({ searchParams }: Props) {
   const { data } = await admin
     .from("rsvps")
     .select(
-      "id, first_name, last_name, response, over16, over18, note, manage_token_hash",
+      "id, first_name, last_name, age_group, note, status, was_confirmed, response, manage_token_hash",
     )
     .eq("manage_token_hash", tokenHash)
     .maybeSingle();
@@ -37,11 +38,13 @@ export default async function ManagePage({ searchParams }: Props) {
   if (!settings) notFound();
 
   const yesCount = await countYesRsvps();
-  // If already "komme", switching away and back should still work unless
-  // capacity would be exceeded by a NEW yes — already counted.
-  const alreadyYes = data.response === "komme";
-  const capacity = canAcceptYes(settings, alreadyYes ? yesCount - 1 : yesCount);
-  const canSwitchToYes = capacity.ok;
+  const active =
+    data.response === "komme" && data.status !== "zurückgezogen";
+  const capacity = canAcceptYes(
+    settings,
+    active ? Math.max(0, yesCount - 1) : yesCount,
+  );
+  const canReregister = capacity.ok;
 
   return (
     <main className="safe-pad mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center py-8">
@@ -49,14 +52,12 @@ export default async function ManagePage({ searchParams }: Props) {
         token={raw}
         firstName={data.first_name}
         lastName={data.last_name}
-        over16={data.over16}
-        over18={data.over18}
-        initialResponse={data.response as "komme" | "komme_nicht"}
+        ageGroup={data.age_group as AgeGroup}
         initialNote={data.note ?? ""}
-        canSwitchToYes={canSwitchToYes || alreadyYes}
-        blockedReason={
-          canSwitchToYes || alreadyYes ? undefined : capacity.reason
-        }
+        initialStatus={data.status}
+        wasBestätigt={Boolean(data.was_confirmed)}
+        canReregister={canReregister}
+        blockedReason={canReregister ? undefined : capacity.reason}
       />
     </main>
   );
