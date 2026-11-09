@@ -46,15 +46,24 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   if (pathname.startsWith("/admin")) {
-    // Soft gate: detailed ADMIN_EMAIL check happens in the admin layout.
-    // Here we only bounce clearly unauthenticated browsers to /login.
-    const hasSbCookie = request.cookies
-      .getAll()
-      .some((c) => c.name.startsWith("sb-") && c.value);
-    if (!hasSbCookie) {
-      const login = new URL("/login", request.url);
-      login.searchParams.set("next", pathname);
-      return NextResponse.redirect(login);
+    // Local QA preview skips the soft cookie gate (layout/API still gated
+    // unless ADMIN_UI_PREVIEW is enabled on localhost).
+    const preview =
+      process.env.ADMIN_UI_PREVIEW === "1" &&
+      (process.env.NODE_ENV === "development" ||
+        (process.env.NEXT_PUBLIC_SITE_URL || "").includes("localhost") ||
+        (process.env.NEXT_PUBLIC_SITE_URL || "").includes("127.0.0.1"));
+
+    if (!preview) {
+      // Soft gate: detailed ADMIN_EMAIL check happens in the admin layout.
+      const hasSbCookie = request.cookies
+        .getAll()
+        .some((c) => c.name.startsWith("sb-") && c.value);
+      if (!hasSbCookie) {
+        const login = new URL("/login", request.url);
+        login.searchParams.set("next", pathname);
+        return NextResponse.redirect(login);
+      }
     }
   }
 

@@ -18,9 +18,10 @@ This is a standalone project (not related to “Party Control”).
 ### 1. Supabase project
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor** and run the entire file:
+2. Open **SQL Editor** and run these files (in order):
 
-   `supabase/migrations/001_init.sql`
+   - `supabase/migrations/001_init.sql`
+   - `supabase/migrations/002_ensure_settings.sql` (safe to re-run; seeds the settings row)
 
 3. In **Authentication → Users**, create the admin user (email + password).  
    There is no public registration page.

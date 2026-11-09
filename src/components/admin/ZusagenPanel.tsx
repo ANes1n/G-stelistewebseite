@@ -151,27 +151,27 @@ export function ZusagenPanel() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="admin-page space-y-5">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-semibold">Zusagen</h1>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
+          <h1 className="font-display font-semibold">Zusagen</h1>
+          <p className="mt-1 text-[16px] text-[var(--text-muted)]">
             {counters.zugesagt} zugesagt · {counters.abgesagt} abgesagt ·{" "}
             {counters.ausstehend} ausstehend · {counters.gesamt} gesamt
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <button
             type="button"
             onClick={exportConfirmed}
-            className="touch-target glass rounded-xl px-3 text-sm"
+            className="btn btn-secondary sm:w-auto"
           >
             CSV Export
           </button>
           <button
             type="button"
             onClick={deleteAllYes}
-            className="touch-target rounded-xl bg-rose-500/20 px-3 text-sm text-rose-100"
+            className="btn btn-danger sm:w-auto"
           >
             Alle Zusagen löschen
           </button>
@@ -183,12 +183,12 @@ export function ZusagenPanel() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Suche…"
-          className="touch-target w-full rounded-xl border border-white/15 bg-white/5 px-3 text-base outline-none sm:max-w-xs"
+          className="admin-input sm:max-w-xs"
         />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="touch-target rounded-xl border border-white/15 bg-white/5 px-3 text-base"
+          className="admin-input sm:max-w-[12rem]"
         >
           <option value="alle">Alle Status</option>
           <option value="ausstehend">Ausstehend</option>
